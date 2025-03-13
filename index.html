@@ -51,7 +51,7 @@
             left: 50%;
             transform: translate(-50%, -50%);
             background: white;
-            padding: 20px;
+            padding: 15px;
             border-radius: 10px;
             box-shadow: 0 0 20px rgba(0,0,0,0.2);
             z-index: 1000;
@@ -74,8 +74,8 @@
             width: 400px;
         }
         button {
-            margin: 5px;
-            padding: 8px 16px;
+/*            margin: 5px;*/
+            padding: 12px 20px;
             border: none;
             border-radius: 5px;
             background: #4CAF50;
@@ -85,6 +85,12 @@
         button:hover {
             background: #45a049;
         }
+        .action-buttons {
+            margin-top: auto;
+            display: flex;
+            gap: 10px;
+            padding-top: 20px;
+        } 
         textarea {
             width: 100%;
             height: 200px;
@@ -93,11 +99,6 @@
         }
         input[type="number"] {
             width: 60px;
-            padding: 5px;
-            margin: 5px;
-        }
-        input[type="text"] {
-            width: 80px;
             padding: 5px;
             margin: 5px;
         }
@@ -145,13 +146,101 @@
             align-items: center;
             margin-bottom: 15px;
         }
-        .color-input-group {
+        .gradient-dialog {
+            width: 50vw;
+            min-width: 475px;
+            max-width: 600px;
+            height: 70vh;
+            overflow-y: auto;
+            display: flex;
+            gap: 20px;
+            padding: 20px;
+        }
+        .gradient-container {
+            position: relative;
+            width: 200px;
+            height: 100%;
+        }
+        #gradient-box {
+            width: 100%;
+            height: 100%;
+/*            border: 1px solid #ccc;*/
+        }
+        .slider-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+        }
+        .stop-handle {
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border: 2px solid white;
+            border-radius: 50%;
+            left: -12px;
+            transform: translateY(-50%);
+            cursor: grab;
+            box-shadow: 0 0 5px rgba(0,0,0,0.3);
+            transition: transform 0.1s;
+            z-index: 1;
+        }
+        .stop-handle:hover {
+            transform: translateY(-50%) scale(1.1);
+        }
+        .stop-handle.active {
+            cursor: grabbing;
+            z-index: 2;
+        }
+        .gradient-controls {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        .stops-container {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .stop {
             display: flex;
             align-items: center;
-            margin-bottom: 10px;
+            gap: 10px;
+            background: #f5f5f5;
+            padding: 10px;
+            border-radius: 5px;
+            transition: transform 0.2s;
         }
-        .color-input-group label {
-            min-width: 100px;
+        .stop input[type="color"] {
+            width: 50px;
+            height: 30px;
+        }
+        .stop input[type="number"] {
+            width: 60px;
+        }
+        .remove-stop {
+            background: #ff4444;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 3px;
+            cursor: pointer;
+        }
+        #add-stop {
+            background: #4CAF50;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #gradient-css {
+            width: 100%;
+            padding: 10px;
+            font-family: monospace;
         }
         .exportContainer {
             box-sizing: border-box;
@@ -164,16 +253,15 @@
         }
 
         @media (max-width: 1000px) {
-    #container {
-        flex-direction: column;
-        align-items: center;
-    }
-    
-    .controls {
-        width: 492px; /* Same as grid width */
-/*        margin-top: 20px;*/
-    }
-}
+            #container {
+                flex-direction: column;
+                align-items: center;
+            }
+            
+            .controls {
+                width: 492px;
+            }
+        }
     </style>
 </head>
 <body>
@@ -187,9 +275,9 @@
                 <h2>Grid Controls</h2>
                 <div class="grid-controls">
                     <span class="size-label">Columns:</span>
-                    <input type="number" id="colsInput" value="8" min="1" max="16">
+                    <input type="number" id="colsInput" value="8">
                     <span class="size-label">Rows:</span>
-                    <input type="number" id="rowsInput" value="4" min="1" max="16">
+                    <input type="number" id="rowsInput" value="4">
                 </div>
                 <button onclick="updateGridSize()">Update Grid Size</button>
             </div>
@@ -223,19 +311,21 @@
 
     <div id="overlay"></div>
     <div id="popup">
-        <h3>Edit Gradient</h3>
-        <div class="color-input-group">
-            <label>Top Color:</label>
-            <input type="color" id="topColor" onchange="updateHexFromColor('top')">
-            <input type="text" id="topHex" maxlength="7" placeholder="#RRGGBB" onchange="updateColorFromHex('top')">
+        <div class="gradient-dialog">
+            <div class="gradient-container">
+                <div id="gradient-box"></div>
+                <div class="slider-container" id="slider-container"></div>
+            </div>
+            <div class="gradient-controls">
+                <h2>Gradient Generator</h2>
+                <div class="stops-container" id="stops"></div>
+            <button id="add-stop">Add Color Stop</button>
+            <div class="action-buttons">
+                <button onclick="updateGradient()">Update</button>
+                <button onclick="closePopup()">Cancel</button>
+            </div>
+            </div>
         </div>
-        <div class="color-input-group">
-            <label>Bottom Color:</label>
-            <input type="color" id="bottomColor" onchange="updateHexFromColor('bottom')">
-            <input type="text" id="bottomHex" maxlength="7" placeholder="#RRGGBB" onchange="updateColorFromHex('bottom')">
-        </div>
-        <button onclick="updateGradient()">Update</button>
-        <button onclick="closePopup()">Cancel</button>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -245,27 +335,176 @@
         let rows = 4;
         let currentCell = null;
         let gradientData = [];
+        let currentGradientGenerator = null;
 
-        function updateHexFromColor(type) {
-            const colorInput = document.getElementById(type + 'Color');
-            const hexInput = document.getElementById(type + 'Hex');
-            hexInput.value = colorInput.value.toUpperCase();
-        }
-
-        function updateColorFromHex(type) {
-            const colorInput = document.getElementById(type + 'Color');
-            const hexInput = document.getElementById(type + 'Hex');
-            let hex = hexInput.value;
-            
-            if (!hex.startsWith('#')) {
-                hex = '#' + hex;
-                hexInput.value = hex;
+        class GradientGenerator {
+            constructor() {
+                this.stops = [
+                    { color: '#CCCCCC', position: 0 },
+                    { color: '#B4B4B4', position: 100 }
+                ];
+                
+                this.container = document.getElementById('stops');
+                this.gradientBox = document.getElementById('gradient-box');
+                this.sliderContainer = document.getElementById('slider-container');
+                
+                document.getElementById('add-stop').addEventListener('click', () => this.addStop());
+                
+                this.activeHandle = null;
+                this.originalIndex = null;
+                this.setupDragHandlers();
+                
+                this.render();
             }
-            
-            if (/^#[0-9A-F]{6}$/i.test(hex)) {
-                colorInput.value = hex;
-            } else {
-                hexInput.value = colorInput.value;
+
+            setupDragHandlers() {
+                const moveHandler = (e) => {
+                    if (this.activeHandle !== null) {
+                        const rect = this.sliderContainer.getBoundingClientRect();
+                        let position = ((e.clientY - rect.top) / rect.height) * 100;
+                        position = Math.max(0, Math.min(100, position));
+                        
+                        this.stops[this.activeHandle].position = position;
+                        
+                        let newIndex = 0;
+                        for (let i = 0; i < this.stops.length; i++) {
+                            if (i !== this.activeHandle && this.stops[i].position < position) {
+                                newIndex++;
+                            }
+                        }
+                        
+                        if (newIndex !== this.activeHandle) {
+                            const stop = this.stops[this.activeHandle];
+                            this.stops.splice(this.activeHandle, 1);
+                            this.stops.splice(newIndex, 0, stop);
+                            this.activeHandle = newIndex;
+                        }
+                        
+                        this.render();
+                    }
+                };
+
+                const upHandler = () => {
+                    if (this.activeHandle !== null) {
+                        document.removeEventListener('mousemove', moveHandler);
+                        document.removeEventListener('mouseup', upHandler);
+                        const handle = document.querySelector('.stop-handle.active');
+                        if (handle) handle.classList.remove('active');
+                        this.activeHandle = null;
+                    }
+                };
+
+                this.sliderContainer.addEventListener('mousedown', (e) => {
+                    const handle = e.target.closest('.stop-handle');
+                    if (handle) {
+                        this.activeHandle = parseInt(handle.dataset.index);
+                        handle.classList.add('active');
+                        document.addEventListener('mousemove', moveHandler);
+                        document.addEventListener('mouseup', upHandler);
+                    }
+                });
+            }
+
+            addStop() {
+                const position = 50;
+                const color = '#' + Math.floor(Math.random()*16777215).toString(16);
+                this.stops.push({ color, position });
+                this.stops.sort((a, b) => a.position - b.position);
+                this.render();
+            }
+
+            removeStop(index) {
+                if (this.stops.length > 2) {
+                    this.stops.splice(index, 1);
+                    this.render();
+                }
+            }
+
+            updateStop(index, color, position) {
+                this.stops[index].color = color;
+                this.stops[index].position = position;
+                this.render();
+            }
+
+            generateGradient() {
+                const gradient = this.stops
+                    .map(stop => `${stop.color} ${stop.position}%`)
+                    .join(', ');
+                return `linear-gradient(to bottom, ${gradient})`;
+            }
+
+            updateGradientDisplay() {
+                const gradientValue = this.generateGradient();
+                this.gradientBox.style.background = gradientValue;
+
+            }
+
+            render() {
+                this.container.innerHTML = '';
+                this.sliderContainer.innerHTML = '';
+                
+                this.stops.forEach((stop, index) => {
+                    const handle = document.createElement('div');
+                    handle.className = 'stop-handle';
+                    if (index === this.activeHandle) handle.classList.add('active');
+                    handle.style.top = `${stop.position}%`;
+                    handle.style.backgroundColor = stop.color;
+                    handle.dataset.index = index;
+                    this.sliderContainer.appendChild(handle);
+                    
+                    const stopElement = document.createElement('div');
+                    stopElement.className = 'stop';
+                    
+                    const colorInput = document.createElement('input');
+                    colorInput.type = 'color';
+                    colorInput.value = stop.color;
+                    colorInput.addEventListener('input', (e) => {
+                        this.stops[index].color = e.target.value;
+                        handle.style.backgroundColor = e.target.value;
+                        this.updateGradientDisplay();
+                    });
+                    
+                    const positionInput = document.createElement('input');
+                    positionInput.type = 'number';
+                    positionInput.min = 0;
+                    positionInput.max = 100;
+                    positionInput.value = Math.round(stop.position);
+                    positionInput.addEventListener('input', (e) => {
+                        const newPosition = parseInt(e.target.value);
+                        this.stops[index].position = newPosition;
+                        handle.style.top = `${newPosition}%`;
+                        this.updateGradientDisplay();
+                    });
+                    
+                    const removeButton = document.createElement('button');
+                    removeButton.className = 'remove-stop';
+                    removeButton.textContent = 'Remove';
+                    removeButton.addEventListener('click', () => this.removeStop(index));
+                    
+                    stopElement.appendChild(colorInput);
+                    stopElement.appendChild(positionInput);
+                    stopElement.appendChild(removeButton);
+                    this.container.appendChild(stopElement);
+                });
+                
+                this.updateGradientDisplay();
+            }
+
+            setGradient(gradientCSS) {
+                if (gradientCSS) {
+                    const matches = gradientCSS.match(/linear-gradient\(to bottom,\s*((?:[^,]+,\s*)*[^)]+)\)/);
+                    if (matches && matches[1]) {
+                        const stops = matches[1].split(',').map(stop => {
+                            const [color, position] = stop.trim().split(/\s+/);
+                            return {
+                                color: color,
+                                position: parseFloat(position)
+                            };
+                        });
+                        this.stops = stops;
+                        this.render();
+                    }
+                }
             }
         }
 
@@ -282,8 +521,7 @@
             grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
             gradientData = [];
 
-            const topColor = '#CCCCCC';    // Light grey
-            const bottomColor = '#B4B4B4';  // Middle grey
+            const defaultGradient = 'linear-gradient(to bottom, #CCCCCC 0%, #B4B4B4 100%)';
 
             for (let i = 0; i < rows * cols; i++) {
                 const cell = document.createElement('div');
@@ -292,46 +530,39 @@
                 cell.addEventListener('click', () => openPopup(cell));
                 grid.appendChild(cell);
                 
-                setGradient(cell, topColor, bottomColor);
-                gradientData[i] = { top: topColor, bottom: bottomColor };
+                cell.style.background = defaultGradient;
+                gradientData[i] = { css: defaultGradient };
             }
             updateJSON();
         }
 
-        function setGradient(cell, topColor, bottomColor) {
-            cell.style.background = `linear-gradient(0deg, ${bottomColor}, ${topColor})`;
-            cell.style.backgroundSize = '100% 100%';
-        }
-
         function openPopup(cell) {
             currentCell = cell;
-            const index = cell.getAttribute('data-index');
-            const topColor = gradientData[index].top;
-            const bottomColor = gradientData[index].bottom;
-            
-            document.getElementById('topColor').value = topColor;
-            document.getElementById('bottomColor').value = bottomColor;
-            document.getElementById('topHex').value = topColor.toUpperCase();
-            document.getElementById('bottomHex').value = bottomColor.toUpperCase();
-            
             document.getElementById('popup').style.display = 'block';
             document.getElementById('overlay').style.display = 'block';
+            
+            currentGradientGenerator = new GradientGenerator();
+            const index = cell.getAttribute('data-index');
+            if (gradientData[index] && gradientData[index].css) {
+                currentGradientGenerator.setGradient(gradientData[index].css);
+            }
         }
 
         function closePopup() {
             document.getElementById('popup').style.display = 'none';
             document.getElementById('overlay').style.display = 'none';
+            currentGradientGenerator = null;
         }
 
         function updateGradient() {
-            const topColor = document.getElementById('topColor').value;
-            const bottomColor = document.getElementById('bottomColor').value;
-            const index = currentCell.getAttribute('data-index');
-            
-            setGradient(currentCell, topColor, bottomColor);
-            gradientData[index] = { top: topColor, bottom: bottomColor };
-            updateJSON();
-            closePopup();
+            if (currentCell && currentGradientGenerator) {
+                const gradient = currentGradientGenerator.generateGradient();
+                const index = currentCell.getAttribute('data-index');
+                currentCell.style.background = gradient;
+                gradientData[index] = { css: gradient };
+                updateJSON();
+                closePopup();
+            }
         }
 
         function updateJSON() {
@@ -375,8 +606,8 @@
                         cell.className = 'cell';
                         cell.setAttribute('data-index', i);
                         cell.addEventListener('click', () => openPopup(cell));
+                        cell.style.background = data.gradients[i].css;
                         grid.appendChild(cell);
-                        setGradient(cell, data.gradients[i].top, data.gradients[i].bottom);
                     }
                 } else {
                     throw new Error('Invalid data format');
@@ -397,11 +628,10 @@
             tempContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
             
             for (let i = 0; i < rows * cols; i++) {
-                const gradient = gradientData[i];
                 const cell = document.createElement('div');
                 cell.style.width = '100%';
                 cell.style.height = '100%';
-                cell.style.background = `linear-gradient(${gradient.top}, ${gradient.bottom})`;
+                cell.style.background = gradientData[i].css;
                 tempContainer.appendChild(cell);
             }
             
