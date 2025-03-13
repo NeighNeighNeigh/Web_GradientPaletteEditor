@@ -1,0 +1,544 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gradient Palette Editor</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background: #f0f0f0;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+        }
+        #container {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        #gridContainer {
+            background: white;
+            padding: 10px;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        #grid {
+            display: grid;
+            width: 512px;
+            height: 512px;
+        }
+        .cell {
+            width: 100%;
+            height: 100%;
+            cursor: pointer;
+            transition: all 0.1s;
+            position: relative;
+        }
+        .cell:hover {
+            transform: scale(1.05);
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+        #popup {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 0 20px rgba(0,0,0,0.2);
+            z-index: 1000;
+        }
+        #overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .controls {
+            padding: 20px;
+            background: white;
+            border-radius: 5px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            width: 400px;
+        }
+        button {
+            margin: 5px;
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            background: #4CAF50;
+            color: white;
+            cursor: pointer;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        textarea {
+            width: 100%;
+            height: 200px;
+            margin: 10px 0;
+            font-family: monospace;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            margin: 5px;
+        }
+        input[type="text"] {
+            width: 80px;
+            padding: 5px;
+            margin: 5px;
+        }
+        #fileInput {
+            display: none;
+        }
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #eee;
+        }
+        .section:last-child {
+            border-bottom: none;
+        }
+        .section h2 {
+            margin: 0 0 15px 0;
+            font-size: 24px;
+        }
+        .export-group {
+            margin-bottom: 15px;
+        }
+        .size-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .size-label {
+            font-size: 18px;
+            margin-right: 10px;
+            min-width: 80px;
+        }
+        .import-note {
+            color: #666;
+            font-size: 14px;
+            margin: 10px 0;
+            line-height: 1.4;
+        }
+        .json-controls {
+            display: flex;
+            gap: 10px;
+        }
+        .grid-controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .color-input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+        .color-input-group label {
+            min-width: 100px;
+        }
+        .exportContainer {
+            box-sizing: border-box;
+            position: fixed; 
+            left: -9999px;
+            top: -9999px;
+            display: grid !important;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        @media (max-width: 1000px) {
+    #container {
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .controls {
+        width: 492px; /* Same as grid width */
+/*        margin-top: 20px;*/
+    }
+}
+    </style>
+</head>
+<body>
+    <h1>Gradient Palette Editor</h1>
+    <div id="container">
+        <div id="gridContainer">
+            <div id="grid"></div>
+        </div>
+        <div class="controls">
+            <div class="section">
+                <h2>Grid Controls</h2>
+                <div class="grid-controls">
+                    <span class="size-label">Columns:</span>
+                    <input type="number" id="colsInput" value="8" min="1" max="16">
+                    <span class="size-label">Rows:</span>
+                    <input type="number" id="rowsInput" value="4" min="1" max="16">
+                </div>
+                <button onclick="updateGridSize()">Update Grid Size</button>
+            </div>
+
+            <div class="section">
+                <h2>Export Controls</h2>
+                <div class="size-row">
+                    <span class="size-label">Size (px):</span>
+                    <input type="number" id="exportSize" value="1024" min="64" step="64">
+                </div>
+                <button onclick="exportPNG()">Export PNG</button>
+            </div>
+
+            <div class="section">
+                <h2>Import PNG</h2>
+                <p class="import-note">Note: This function only works with PNG files that were previously exported from this web app, as they contain special encoded metadata about the gradients.</p>
+                <button onclick="document.getElementById('fileInput').click()">Import PNG</button>
+                <input type="file" id="fileInput" accept=".png" onchange="importPNG(event)">
+            </div>
+
+            <div class="section">
+                <h2>Palette Data</h2>
+                <textarea id="jsonData"></textarea>
+                <div class="json-controls">
+                    <button onclick="copyJSON()">Copy JSON</button>
+                    <button onclick="loadJSON()">Update from JSON</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay"></div>
+    <div id="popup">
+        <h3>Edit Gradient</h3>
+        <div class="color-input-group">
+            <label>Top Color:</label>
+            <input type="color" id="topColor" onchange="updateHexFromColor('top')">
+            <input type="text" id="topHex" maxlength="7" placeholder="#RRGGBB" onchange="updateColorFromHex('top')">
+        </div>
+        <div class="color-input-group">
+            <label>Bottom Color:</label>
+            <input type="color" id="bottomColor" onchange="updateHexFromColor('bottom')">
+            <input type="text" id="bottomHex" maxlength="7" placeholder="#RRGGBB" onchange="updateColorFromHex('bottom')">
+        </div>
+        <button onclick="updateGradient()">Update</button>
+        <button onclick="closePopup()">Cancel</button>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script>
+        const gridSize = 512;
+        let cols = 8;
+        let rows = 4;
+        let currentCell = null;
+        let gradientData = [];
+
+        function updateHexFromColor(type) {
+            const colorInput = document.getElementById(type + 'Color');
+            const hexInput = document.getElementById(type + 'Hex');
+            hexInput.value = colorInput.value.toUpperCase();
+        }
+
+        function updateColorFromHex(type) {
+            const colorInput = document.getElementById(type + 'Color');
+            const hexInput = document.getElementById(type + 'Hex');
+            let hex = hexInput.value;
+            
+            if (!hex.startsWith('#')) {
+                hex = '#' + hex;
+                hexInput.value = hex;
+            }
+            
+            if (/^#[0-9A-F]{6}$/i.test(hex)) {
+                colorInput.value = hex;
+            } else {
+                hexInput.value = colorInput.value;
+            }
+        }
+
+        function updateGridSize() {
+            cols = parseInt(document.getElementById('colsInput').value);
+            rows = parseInt(document.getElementById('rowsInput').value);
+            initGrid();
+        }
+
+        function initGrid() {
+            const grid = document.getElementById('grid');
+            grid.innerHTML = '';
+            grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            gradientData = [];
+
+            const topColor = '#CCCCCC';    // Light grey
+            const bottomColor = '#B4B4B4';  // Middle grey
+
+            for (let i = 0; i < rows * cols; i++) {
+                const cell = document.createElement('div');
+                cell.className = 'cell';
+                cell.setAttribute('data-index', i);
+                cell.addEventListener('click', () => openPopup(cell));
+                grid.appendChild(cell);
+                
+                setGradient(cell, topColor, bottomColor);
+                gradientData[i] = { top: topColor, bottom: bottomColor };
+            }
+            updateJSON();
+        }
+
+        function setGradient(cell, topColor, bottomColor) {
+            cell.style.background = `linear-gradient(0deg, ${bottomColor}, ${topColor})`;
+            cell.style.backgroundSize = '100% 100%';
+        }
+
+        function openPopup(cell) {
+            currentCell = cell;
+            const index = cell.getAttribute('data-index');
+            const topColor = gradientData[index].top;
+            const bottomColor = gradientData[index].bottom;
+            
+            document.getElementById('topColor').value = topColor;
+            document.getElementById('bottomColor').value = bottomColor;
+            document.getElementById('topHex').value = topColor.toUpperCase();
+            document.getElementById('bottomHex').value = bottomColor.toUpperCase();
+            
+            document.getElementById('popup').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+
+        function closePopup() {
+            document.getElementById('popup').style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+
+        function updateGradient() {
+            const topColor = document.getElementById('topColor').value;
+            const bottomColor = document.getElementById('bottomColor').value;
+            const index = currentCell.getAttribute('data-index');
+            
+            setGradient(currentCell, topColor, bottomColor);
+            gradientData[index] = { top: topColor, bottom: bottomColor };
+            updateJSON();
+            closePopup();
+        }
+
+        function updateJSON() {
+            const fullData = {
+                cols: cols,
+                rows: rows,
+                gradients: gradientData,
+                exportSize: parseInt(document.getElementById('exportSize').value)
+            };
+            document.getElementById('jsonData').value = JSON.stringify(fullData, null, 2);
+        }
+
+        function copyJSON() {
+            const jsonText = document.getElementById('jsonData').value;
+            navigator.clipboard.writeText(jsonText);
+            alert('JSON copied to clipboard!');
+        }
+
+        function loadJSON() {
+            try {
+                const jsonText = document.getElementById('jsonData').value;
+                const data = JSON.parse(jsonText);
+                if (data.cols && data.rows && Array.isArray(data.gradients)) {
+                    cols = data.cols;
+                    rows = data.rows;
+                    document.getElementById('colsInput').value = cols;
+                    document.getElementById('rowsInput').value = rows;
+                    
+                    if (data.exportSize) {
+                        document.getElementById('exportSize').value = data.exportSize;
+                    }
+                    
+                    const grid = document.getElementById('grid');
+                    grid.innerHTML = '';
+                    grid.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+                    grid.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+                    gradientData = data.gradients;
+                    
+                    for (let i = 0; i < rows * cols; i++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.setAttribute('data-index', i);
+                        cell.addEventListener('click', () => openPopup(cell));
+                        grid.appendChild(cell);
+                        setGradient(cell, data.gradients[i].top, data.gradients[i].bottom);
+                    }
+                } else {
+                    throw new Error('Invalid data format');
+                }
+            } catch (e) {
+                alert('Invalid JSON format!');
+            }
+        }
+
+        function exportPNG() {
+            const exportSize = parseInt(document.getElementById('exportSize').value);
+            
+            const tempContainer = document.createElement('div');
+            tempContainer.className = 'exportContainer';
+            tempContainer.style.width = exportSize + 'px';
+            tempContainer.style.height = exportSize + 'px';
+            tempContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            tempContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+            
+            for (let i = 0; i < rows * cols; i++) {
+                const gradient = gradientData[i];
+                const cell = document.createElement('div');
+                cell.style.width = '100%';
+                cell.style.height = '100%';
+                cell.style.background = `linear-gradient(${gradient.top}, ${gradient.bottom})`;
+                tempContainer.appendChild(cell);
+            }
+            
+            document.body.appendChild(tempContainer);
+            
+            html2canvas(tempContainer, {
+                width: exportSize,
+                height: exportSize,
+                backgroundColor: null,
+                scale: 1
+            }).then(canvas => {
+                const fullData = {
+                    cols: cols,
+                    rows: rows,
+                    gradients: gradientData,
+                    exportSize: exportSize
+                };
+                const jsonData = JSON.stringify(fullData);
+                
+                const keyword = 'paletteData';
+                const textData = keyword + '\0' + jsonData;
+                
+                canvas.toBlob((blob) => {
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        const arrayBuffer = reader.result;
+                        const uint8Array = new Uint8Array(arrayBuffer);
+                        
+                        let pos = 8;
+                        let iendPos = 0;
+                        
+                        while (pos < uint8Array.length) {
+                            const length = uint8Array[pos] << 24 | uint8Array[pos + 1] << 16 |
+                                         uint8Array[pos + 2] << 8 | uint8Array[pos + 3];
+                            const type = String.fromCharCode(...uint8Array.slice(pos + 4, pos + 8));
+                            
+                            if (type === 'IEND') {
+                                iendPos = pos;
+                                break;
+                            }
+                            pos += 8 + length + 4;
+                        }
+                        
+                        const textEncoder = new TextEncoder();
+                        const textBytes = textEncoder.encode(textData);
+                        const chunkLength = textBytes.length;
+                        
+                        const newArray = new Uint8Array(uint8Array.length + chunkLength + 12);
+                        newArray.set(uint8Array.slice(0, iendPos));
+                        
+                        let writePos = iendPos;
+                        
+                        newArray[writePos++] = (chunkLength >> 24) & 255;
+                        newArray[writePos++] = (chunkLength >> 16) & 255;
+                        newArray[writePos++] = (chunkLength >> 8) & 255;
+                        newArray[writePos++] = chunkLength & 255;
+                        
+                        newArray[writePos++] = 116;
+                        newArray[writePos++] = 69;
+                        newArray[writePos++] = 88;
+                        newArray[writePos++] = 116;
+                        
+                        newArray.set(textBytes, writePos);
+                        writePos += textBytes.length;
+                        
+                        const crcData = newArray.slice(writePos - textBytes.length - 4, writePos);
+                        const crc = calculateCRC32(crcData);
+                        
+                        newArray[writePos++] = (crc >> 24) & 255;
+                        newArray[writePos++] = (crc >> 16) & 255;
+                        newArray[writePos++] = (crc >> 8) & 255;
+                        newArray[writePos++] = crc & 255;
+                        
+                        newArray.set(uint8Array.slice(iendPos), writePos);
+                        
+                        const newBlob = new Blob([newArray], {type: 'image/png'});
+                        const link = document.createElement('a');
+                        link.href = URL.createObjectURL(newBlob);
+                        link.download = 'gradient-grid.png';
+                        link.click();
+                        
+                        document.body.removeChild(tempContainer);
+                    };
+                    reader.readAsArrayBuffer(blob);
+                });
+            });
+        }
+
+        function importPNG(event) {
+            const file = event.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    const uint8Array = new Uint8Array(e.target.result);
+                    
+                    let pos = 8;
+                    while (pos < uint8Array.length) {
+                        const length = uint8Array[pos] << 24 | uint8Array[pos + 1] << 16 |
+                                     uint8Array[pos + 2] << 8 | uint8Array[pos + 3];
+                        const type = String.fromCharCode(...uint8Array.slice(pos + 4, pos + 8));
+                        
+                        if (type === 'tEXt') {
+                            const data = uint8Array.slice(pos + 8, pos + 8 + length);
+                            const text = new TextDecoder().decode(data);
+                            const [keyword, jsonText] = text.split('\0');
+                            if (keyword === 'paletteData') {
+                                document.getElementById('jsonData').value = jsonText;
+                                loadJSON();
+                            }
+                            break;
+                        }
+                        
+                        pos += 8 + length + 4;
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        }
+
+        function calculateCRC32(data) {
+            let crc = -1;
+            for (let i = 0; i < data.length; i++) {
+                crc = crc >>> 8 ^ crcTable[(crc ^ data[i]) & 0xFF];
+            }
+            return (crc ^ (-1)) >>> 0;
+        }
+
+        const crcTable = new Uint32Array(256);
+        for (let i = 0; i < 256; i++) {
+            let c = i;
+            for (let j = 0; j < 8; j++) {
+                c = ((c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1));
+            }
+            crcTable[i] = c;
+        }
+
+        initGrid();
+    </script>
+</body>
+</html>
